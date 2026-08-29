@@ -21,7 +21,22 @@ export interface UseLudoGame {
   vibrateOn: boolean;
 }
 
-export function useLudoGame(players: PlayerConfig[], vibrateOn: boolean): UseLudoGame {
+export interface OnlineOptions {
+  /** الألوان التي يتحكم بها هذا الجهاز */
+  myColors: ColorId[];
+  /** هل هذا الجهاز هو المضيف (يدير حركات الكمبيوتر)؟ */
+  isHost: boolean;
+  /** آخر حالة واردة من الخادم */
+  remote: { rev: number; state: GameState } | null;
+  /** إرسال الحالة بعد كل حركة محلية */
+  publish: (state: GameState) => void;
+}
+
+export function useLudoGame(
+  players: PlayerConfig[],
+  vibrateOn: boolean,
+  online?: OnlineOptions,
+): UseLudoGame {
   const [state, setState] = useState<GameState>(() => createGame(players));
   const [animating, setAnimating] = useState<string | null>(null);
   const [animPos, setAnimPos] = useState<number | null>(null);
