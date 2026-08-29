@@ -49,9 +49,10 @@ export function useLudoGame(
   const appliedRev = useRef(-1);
 
   /** هل يتحكم هذا الجهاز بلاعب هذا اللون؟ */
-  const controlsColor = useCallback((s: GameState, color: ColorId) => {
+  const controlsColor = useCallback((s: GameState, color: ColorId | undefined) => {
     const o = onlineRef.current;
     if (!o) return true;
+    if (!color) return false;
     if (o.myColors.includes(color)) return true;
     const p = s.players.find((x) => x.color === color);
     return p?.kind === "ai" && o.isHost;
