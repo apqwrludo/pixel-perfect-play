@@ -43,6 +43,19 @@ export function useLudoGame(
   const [timeLeft, setTimeLeft] = useState(TURN_SECONDS);
   const busy = useRef(false);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const onlineRef = useRef<OnlineOptions | undefined>(online);
+  onlineRef.current = online;
+  const actedRef = useRef(false);
+  const appliedRev = useRef(-1);
+
+  /** هل يتحكم هذا الجهاز بلاعب هذا اللون؟ */
+  const controlsColor = useCallback((s: GameState, color: ColorId) => {
+    const o = onlineRef.current;
+    if (!o) return true;
+    if (o.myColors.includes(color)) return true;
+    const p = s.players.find((x) => x.color === color);
+    return p?.kind === "ai" && o.isHost;
+  }, []);
 
   const later = useCallback((fn: () => void, ms: number) => {
     const t = setTimeout(fn, ms);
