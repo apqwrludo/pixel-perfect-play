@@ -21,13 +21,42 @@ export interface UseLudoGame {
   vibrateOn: boolean;
 }
 
-export function useLudoGame(players: PlayerConfig[], vibrateOn: boolean): UseLudoGame {
+export interface OnlineOptions {
+  /** الألوان التي يتحكم بها هذا الجهاز */
+  myColors: ColorId[];
+  /** هل هذا الجهاز هو المضيف (يدير حركات الكمبيوتر)؟ */
+  isHost: boolean;
+  /** آخر حالة واردة من الخادم */
+  remote: { rev: number; state: GameState } | null;
+  /** إرسال الحالة بعد كل حركة محلية */
+  publish: (state: GameState) => void;
+}
+
+export function useLudoGame(
+  players: PlayerConfig[],
+  vibrateOn: boolean,
+  online?: OnlineOptions,
+): UseLudoGame {
   const [state, setState] = useState<GameState>(() => createGame(players));
   const [animating, setAnimating] = useState<string | null>(null);
   const [animPos, setAnimPos] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState(TURN_SECONDS);
   const busy = useRef(false);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const onlineRef = useRef<OnlineOptions | undefined>(online);
+  onlineRef.current = online;
+  const actedRef = useRef(false);
+  const appliedRev = useRef(-1);
+
+  /** هل يتحكم هذا الجهاز بلاعب هذا اللون؟ */
+  const controlsColor = useCallback((s: GameState, color: ColorId | undefined) => {
+    const o = onlineRef.current;
+    if (!o) return true;
+    if (!color) return false;
+    if (o.myColors.includes(color)) return true;
+    const p = s.players.find((x) => x.color === color);
+    return p?.kind === "ai" && o.isHost;
+  }, []);
 
   const later = useCallback((fn: () => void, ms: number) => {
     const t = setTimeout(fn, ms);
@@ -149,6 +178,8 @@ export function useLudoGame(players: PlayerConfig[], vibrateOn: boolean): UseLud
   const roll = useCallback(() => {
     setState((s) => {
       if (s.phase !== "waiting") return s;
+      if (!controlsColor(s, s.players[s.turnIndex].color)) return s;
+      actedRef.current = true;
       busy.current = true;
       sfx.dice();
       if (vibrateOn) buzz(18);
@@ -165,19 +196,48 @@ export function useLudoGame(players: PlayerConfig[], vibrateOn: boolean): UseLud
       return { ...s, dice: die, phase: "choose", legal, log: "" };
     });
     setTimeLeft(TURN_SECONDS);
-  }, [endTurn, later, performMove, vibrateOn]);
+  }, [controlsColor, endTurn, later, performMove, vibrateOn]);
 
   const move = useCallback(
     (tokenId: string) => {
+      if (!controlsColor(state, state.players[state.turnIndex]?.color)) return;
+      actedRef.current = true;
       sfx.tap();
       performMove(tokenId);
     },
-    [performMove],
+    [controlsColor, performMove, state],
   );
+
+  // استقبال حالة الخصوم من الخادم
+  useEffect(() => {
+    if (!online?.remote) return;
+    if (online.remote.rev <= appliedRev.current) return;
+    appliedRev.current = online.remote.rev;
+    if (actedRef.current) return;
+    timers.current.forEach(clearTimeout);
+    timers.current = [];
+    setAnimating(null);
+    setAnimPos(null);
+    setTimeLeft(TURN_SECONDS);
+    setState(online.remote.state);
+  }, [online?.remote]);
+
+  // نشر الحالة بعد كل حركة محلية
+  useEffect(() => {
+    const o = onlineRef.current;
+    if (!o || !actedRef.current) return;
+    if (animating || state.phase === "rolling" || state.phase === "moving") return;
+    o.publish(state);
+    const cur = state.players[state.turnIndex];
+    if (state.phase === "over" || !cur || !controlsColor(state, cur.color)) {
+      actedRef.current = false;
+    }
+  }, [state, animating, controlsColor]);
 
   // دور الكمبيوتر
   useEffect(() => {
     if (state.phase === "over") return;
+    if (online && !online.isHost) return;
     const player = state.players[state.turnIndex];
     if (!player || player.kind !== "ai") return;
     if (state.phase === "waiting") {
@@ -192,13 +252,15 @@ export function useLudoGame(players: PlayerConfig[], vibrateOn: boolean): UseLud
       }, AI_MOVE_DELAY);
       return () => clearTimeout(t);
     }
-  }, [state, roll, performMove]);
+  }, [state, roll, performMove, online]);
 
   // مؤقّت الدور للاعب البشري
   useEffect(() => {
     if (state.phase === "over") return;
     const player = state.players[state.turnIndex];
     if (!player || player.kind !== "human") return;
+    if (online && !online.myColors.includes(player.color)) return;
+
     if (state.phase !== "waiting" && state.phase !== "choose") return;
     const id = setInterval(() => {
       setTimeLeft((v) => {
