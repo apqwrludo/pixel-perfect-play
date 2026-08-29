@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PlayRouteImport } from './routes/play'
+import { Route as RoomRouteImport } from './routes/room'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as ShopRouteImport } from './routes/shop'
@@ -23,6 +24,11 @@ const IndexRoute = IndexRouteImport.update({
 const PlayRoute = PlayRouteImport.update({
   id: '/play',
   path: '/play',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RoomRoute = RoomRouteImport.update({
+  id: '/room',
+  path: '/room',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -44,6 +50,7 @@ const ShopRoute = ShopRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/play': typeof PlayRoute
+  '/room': typeof RoomRoute
   '/settings': typeof SettingsRoute
   '/setup': typeof SetupRoute
   '/shop': typeof ShopRoute
@@ -51,6 +58,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/play': typeof PlayRoute
+  '/room': typeof RoomRoute
   '/settings': typeof SettingsRoute
   '/setup': typeof SetupRoute
   '/shop': typeof ShopRoute
@@ -59,21 +67,23 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/play': typeof PlayRoute
+  '/room': typeof RoomRoute
   '/settings': typeof SettingsRoute
   '/setup': typeof SetupRoute
   '/shop': typeof ShopRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/play' | '/settings' | '/setup' | '/shop'
+  fullPaths: '/' | '/play' | '/room' | '/settings' | '/setup' | '/shop'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/play' | '/settings' | '/setup' | '/shop'
-  id: '__root__' | '/' | '/play' | '/settings' | '/setup' | '/shop'
+  to: '/' | '/play' | '/room' | '/settings' | '/setup' | '/shop'
+  id: '__root__' | '/' | '/play' | '/room' | '/settings' | '/setup' | '/shop'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   PlayRoute: typeof PlayRoute
+  RoomRoute: typeof RoomRoute
   SettingsRoute: typeof SettingsRoute
   SetupRoute: typeof SetupRoute
   ShopRoute: typeof ShopRoute
@@ -93,6 +103,13 @@ declare module '@tanstack/react-router' {
       path: '/play'
       fullPath: '/play'
       preLoaderRoute: typeof PlayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/room': {
+      id: '/room'
+      path: '/room'
+      fullPath: '/room'
+      preLoaderRoute: typeof RoomRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -122,6 +139,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   PlayRoute: PlayRoute,
+  RoomRoute: RoomRoute,
   SettingsRoute: SettingsRoute,
   SetupRoute: SetupRoute,
   ShopRoute: ShopRoute,
